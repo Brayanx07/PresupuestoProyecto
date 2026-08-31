@@ -1,357 +1,134 @@
-// =====================================================================
-//  PROYECTO: SISTEMA DE PRESUPUESTO MENSUAL PERSONAL
-//  Modelo Relacional - Firebird 5.0
-//  Moneda: Lempiras (HNL)
-//  Autor: Brayan Pinel
-// =====================================================================
-//  Visualizar en: https://dbdiagram.io/d
-// =====================================================================
-
-Project presupuesto_personal {
-  database_type: 'Firebird 5.0'
-  Note: '''
-  Sistema de gestion de presupuesto personal.
-
-  CONCEPTOS CLAVE DEL MODELO:
-
-  1. PRESUPUESTO_DETALLE.monto_mensual_asignado es un monto MENSUAL, no un
-     total de la vigencia. Un presupuesto Ene-Mar con "Supermercado: 4000"
-     significa 4000 en CADA uno de los tres meses, en un solo registro.
-
-  2. TRANSACCION NO tiene FK hacia PRESUPUESTO_DETALLE. El vinculo con el
-     presupuesto se resuelve en tiempo de consulta cruzando
-     id_presupuesto + id_subcategoria + anio + mes. Por eso el monto
-     ejecutado es siempre un calculo dinamico.
-
-  3. TRANSACCION.anio y TRANSACCION.mes son INDEPENDIENTES de
-     TRANSACCION.fecha y son editables por el usuario. Definen a que mes
-     presupuestal se imputa el movimiento (flexibilidad contable).
-     Toda la reporteria agrupa por anio/mes, NUNCA por fecha.
-
-  4. CATEGORIA.id_usuario NULL = categoria del sistema (visible para todos).
-     Con valor = categoria privada de ese usuario.
-
-  5. Firebird no soporta ENUM. Los tipos Enum de este modelo se traducen en
-     el DDL a VARCHAR + CHECK constraint.
-  '''
-}
-
-// =====================================================================
-//  ENUMS  (en Firebird -> VARCHAR + CHECK)
-// =====================================================================
-
-Enum estado_usuario {
-  activo
-  inactivo
-}
-
-Enum tipo_movimiento {
-  ingreso
-  gasto
-  ahorro
-}
-
-Enum estado_presupuesto {
-  borrador
-  activo
-  cerrado
-}
-
-Enum metodo_pago {
-  efectivo
-  tarjeta_debito
-  tarjeta_credito
-  transferencia
-}
-
-// =====================================================================
-//  TABLAS
-// =====================================================================
 
 Table USUARIO {
-  id_usuario           int            [pk, increment]
-  nombres              varchar(80)    [not null]
-  apellidos            varchar(80)    [not null]
-  correo               varchar(120)   [not null, unique, note: 'Unico en el sistema']
-  fecha_registro       timestamp      [not null, default: `CURRENT_TIMESTAMP`]
-  salario_mensual_base decimal(15,2)  [not null, default: 0, note: 'HNL. CHECK >= 0']
-  estado_usuario       estado_usuario [not null, default: 'activo', note: 'El borrado es logico: sp_eliminar_usuario solo cambia a inactivo']
-
-  creado_por           int            [null]
-  modificado_por       int            [null]
-  creado_en            timestamp      [not null, default: `CURRENT_TIMESTAMP`]
-  modificado_en        timestamp      [null]
-
-  indexes {
-    correo [unique]
-    estado_usuario
-  }
-
-  Note: 'Persona que gestiona su presupuesto. salario_mensual_base sirve de referencia para la planificacion presupuestal inicial.'
+  id_usuario int [pk]
+  nombres varchar(80) [not null]
+  apellidos varchar(80) [not null]
+  correo varchar(120) [not null, unique]
+  fecha_registro timestamp [not null]
+  salario_mensual_base decimal(15,2) [not null]
+  estado_usuario varchar(20) [not null]
+  creado_por int
+  modificado_por int
+  creado_en timestamp [not null]
+  modificado_en timestamp
 }
-
-
-Table CATEGORIA {
-  id_categoria          int             [pk, increment]
-  id_usuario            int             [null, note: 'NULL = categoria del sistema (global). Con valor = categoria privada del usuario.']
-  nombre_categoria      varchar(60)     [not null]
-  descripcion_categoria varchar(150)    [null]
-  tipo_categoria        tipo_movimiento [not null, note: 'Las subcategorias heredan este tipo']
-  icono                 varchar(50)     [null, note: 'Nombre del icono para la UI']
-  color_hex             varchar(7)      [null, note: 'Formato #RRGGBB']
-  orden_ui              smallint        [not null, default: 0]
-
-  creado_por            int             [null]
-  modificado_por        int             [null]
-  creado_en             timestamp       [not null, default: `CURRENT_TIMESTAMP`]
-  modificado_en         timestamp       [null]
-
-  indexes {
-    (id_usuario, nombre_categoria) [unique, name: 'uq_categoria_usuario_nombre']
-    tipo_categoria
-  }
-
-  Note: '''
-  Clasificacion principal. REGLA OBLIGATORIA: toda categoria debe tener al
-  menos una subcategoria. Un trigger AFTER INSERT crea automaticamente la
-  subcategoria "General" marcada con es_defecto = TRUE.
-
-  No se permite registrar transacciones ni detalles de presupuesto
-  directamente contra la categoria, solo contra sus subcategorias.
-
-  OJO: Firebird trata los NULL como distintos en indices UNIQUE, por lo que
-  el indice compuesto no impide dos categorias del sistema con el mismo
-  nombre. Esa validacion va en el trigger.
-  '''
-}
-
-
-Table SUBCATEGORIA {
-  id_subcategoria          int          [pk, increment]
-  id_categoria             int          [not null]
-  nombre_subcategoria      varchar(60)  [not null]
-  descripcion_subcategoria varchar(150) [null]
-  activa                   boolean      [not null, default: true]
-  es_defecto               boolean      [not null, default: false, note: 'TRUE solo en la subcategoria creada por el trigger. Debe haber una sola por categoria (validar en trigger).']
-
-  creado_por               int          [null]
-  modificado_por           int          [null]
-  creado_en                timestamp    [not null, default: `CURRENT_TIMESTAMP`]
-  modificado_en            timestamp    [null]
-
-  indexes {
-    (id_categoria, nombre_subcategoria) [unique, name: 'uq_subcategoria_nombre']
-    (id_categoria, activa)
-  }
-
-  Note: 'Nivel al que se presupuesta y se transacciona. Hereda el tipo de su categoria padre. No se puede eliminar si esta en uso en PRESUPUESTO_DETALLE o TRANSACCION.'
-}
-
 
 Table PRESUPUESTO {
-  id_presupuesto              int                [pk, increment]
-  id_usuario                  int                [not null]
-  nombre_presupuesto          varchar(100)       [not null]
-  anio_inicio                 smallint           [not null]
-  mes_inicio                  smallint           [not null, note: 'CHECK BETWEEN 1 AND 12']
-  anio_fin                    smallint           [not null, note: 'CHECK anio_fin >= anio_inicio']
-  mes_fin                     smallint           [not null, note: 'CHECK BETWEEN 1 AND 12. Si anio_fin = anio_inicio entonces mes_fin >= mes_inicio']
-  total_ingresos_planificados decimal(15,2)      [not null, default: 0, note: 'HNL. Derivado de PRESUPUESTO_DETALLE, se mantiene por trigger']
-  total_gastos_planificados   decimal(15,2)      [not null, default: 0, note: 'HNL. Derivado de PRESUPUESTO_DETALLE, se mantiene por trigger']
-  total_ahorro_planificado    decimal(15,2)      [not null, default: 0, note: 'HNL. Derivado de PRESUPUESTO_DETALLE, se mantiene por trigger']
-  fecha_creacion              timestamp          [not null, default: `CURRENT_TIMESTAMP`]
-  estado_presupuesto          estado_presupuesto [not null, default: 'borrador']
-
-  creado_por                  int                [null]
-  modificado_por              int                [null]
-  creado_en                   timestamp          [not null, default: `CURRENT_TIMESTAMP`]
-  modificado_en               timestamp          [null]
-
-  indexes {
-    (id_usuario, estado_presupuesto)
-    (id_usuario, anio_inicio, mes_inicio)
-  }
-
-  Note: '''
-  Marco temporal y montos globales del presupuesto.
-
-  REGLAS DE NEGOCIO (van en trigger, no se pueden expresar con CHECK simple):
-  - anio_fin/mes_fin >= anio_inicio/mes_inicio
-  - Solo un presupuesto ACTIVO por usuario para un periodo dado
-    (requiere validacion de solapamiento de rangos, no un UNIQUE)
-  - Idealmente total_ingresos >= total_gastos + total_ahorro (advertencia)
-
-  Los tres totales son DERIVADOS de PRESUPUESTO_DETALLE. Se guardan
-  desnormalizados por rendimiento y se sincronizan con trigger sobre
-  PRESUPUESTO_DETALLE. Representan el total MENSUAL, no el de la vigencia.
-  '''
+  id_presupuesto int [pk]
+  id_usuario int [not null]
+  nombre_presupuesto varchar(100) [not null]
+  anio_inicio smallint [not null]
+  mes_inicio smallint [not null]
+  anio_fin smallint [not null]
+  mes_fin smallint [not null]
+  total_ingresos_planificados decimal(15,2) [not null]
+  total_gastos_planificados decimal(15,2) [not null]
+  total_ahorro_planificado decimal(15,2) [not null]
+  fecha_creacion timestamp [not null]
+  estado_presupuesto varchar(20) [not null]
+  creado_por int
+  modificado_por int
+  creado_en timestamp [not null]
+  modificado_en timestamp
 }
 
+Table CATEGORIA {
+  id_categoria int [pk]
+  id_usuario int
+  nombre_categoria varchar(60) [not null]
+  descripcion_categoria varchar(150)
+  tipo_categoria varchar(20) [not null]
+  icono varchar(50)
+  color_hex varchar(7)
+  orden_ui smallint [not null]
+  creado_por int
+  modificado_por int
+  creado_en timestamp [not null]
+  modificado_en timestamp
+}
+
+Table SUBCATEGORIA {
+  id_subcategoria int [pk]
+  id_categoria int [not null]
+  nombre_subcategoria varchar(60) [not null]
+  descripcion_subcategoria varchar(150)
+  activa boolean [not null]
+  es_defecto boolean [not null]
+  creado_por int
+  modificado_por int
+  creado_en timestamp [not null]
+  modificado_en timestamp
+}
 
 Table PRESUPUESTO_DETALLE {
-  id_detalle             int           [pk, increment]
-  id_presupuesto         int           [not null]
-  id_subcategoria        int           [not null, note: 'OBLIGATORIO. El enunciado prohibe NULL aqui.']
-  monto_mensual_asignado decimal(15,2) [not null, note: 'HNL. Monto por CADA MES de la vigencia, no el total. CHECK >= 0']
-  observaciones          varchar(200)  [null]
-
-  creado_por             int           [null]
-  modificado_por         int           [null]
-  creado_en              timestamp     [not null, default: `CURRENT_TIMESTAMP`]
-  modificado_en          timestamp     [null]
+  id_detalle int [pk]
+  id_presupuesto int [not null]
+  id_subcategoria int [not null]
+  monto_mensual_asignado decimal(15,2) [not null]
+  observaciones varchar(200)
+  creado_por int
+  modificado_por int
+  creado_en timestamp [not null]
+  modificado_en timestamp
 
   indexes {
-    (id_presupuesto, id_subcategoria) [unique, name: 'uq_detalle_presupuesto_subcat']
-    id_subcategoria
+    (id_presupuesto, id_subcategoria) [unique]
   }
-
-  Note: '''
-  Distribucion del presupuesto a nivel de subcategoria, con monto MENSUAL fijo.
-
-  Un unico registro aplica a todos los meses de la vigencia. Ejemplo: un
-  presupuesto Ene-Mar 2025 con "Supermercado: L.4,000" presupuesta L.4,000
-  en enero, L.4,000 en febrero y L.4,000 en marzo. NO se crean 3 registros.
-
-  El monto ejecutado NO se almacena: se calcula sumando TRANSACCION filtrada
-  por id_presupuesto + id_subcategoria + anio + mes.
-
-  Porcentaje de ejecucion = (ejecutado del mes / monto_mensual_asignado) * 100
-
-  Total mensual de una categoria = suma del monto_mensual_asignado de todas
-  sus subcategorias.
-
-  El UNIQUE compuesto impide presupuestar dos veces la misma subcategoria
-  dentro del mismo presupuesto.
-  '''
 }
-
 
 Table OBLIGACION_FIJA {
-  id_obligacion          int           [pk, increment]
-  id_usuario             int           [not null]
-  id_subcategoria        int           [not null, note: 'OBLIGATORIO. Debe pertenecer a una categoria de tipo "gasto" (validar en trigger).']
-  nombre_obligacion      varchar(100)  [not null]
-  descripcion_obligacion varchar(200)  [null]
-  monto_fijo_mensual     decimal(15,2) [not null, note: 'HNL. CHECK > 0']
-  dia_vencimiento        smallint      [not null, note: 'CHECK BETWEEN 1 AND 31. Si el mes no tiene ese dia se usa el ultimo dia del mes.']
-  vigente                boolean       [not null, default: true]
-  fecha_inicio           date          [not null]
-  fecha_finalizacion     date          [null, note: 'NULL = obligacion indefinida. Si tiene valor debe ser > fecha_inicio.']
-
-  creado_por             int           [null]
-  modificado_por         int           [null]
-  creado_en              timestamp     [not null, default: `CURRENT_TIMESTAMP`]
-  modificado_en          timestamp     [null]
-
-  indexes {
-    (id_usuario, vigente)
-    id_subcategoria
-  }
-
-  Note: 'Compromisos financieros recurrentes mensuales. Generan alerta 3 dias antes del vencimiento. El estado de pago del reporte 4 se deduce de TRANSACCION.id_obligacion.'
+  id_obligacion int [pk]
+  id_usuario int [not null]
+  id_subcategoria int [not null]
+  nombre_obligacion varchar(100) [not null]
+  descripcion_obligacion varchar(200)
+  monto_fijo_mensual decimal(15,2) [not null]
+  dia_vencimiento smallint [not null]
+  vigente boolean [not null]
+  fecha_inicio date [not null]
+  fecha_finalizacion date
+  creado_por int
+  modificado_por int
+  creado_en timestamp [not null]
+  modificado_en timestamp
 }
-
 
 Table TRANSACCION {
-  id_transaccion   int             [pk, increment]
-  id_usuario       int             [not null]
-  id_presupuesto   int             [not null]
-  anio             smallint        [not null, note: 'Mes presupuestal de imputacion. Independiente de "fecha" y editable por el usuario.']
-  mes              smallint        [not null, note: 'CHECK BETWEEN 1 AND 12. Debe caer dentro de la vigencia del presupuesto.']
-  id_subcategoria  int             [not null, note: 'OBLIGATORIO. Determina la categoria padre.']
-  id_obligacion    int             [null, note: 'Solo si la transaccion paga una obligacion fija. Si aplica, debe usar la misma subcategoria de la obligacion.']
-  tipo_transaccion tipo_movimiento [not null, note: 'Debe coincidir con el tipo de la categoria padre de la subcategoria (validar en trigger).']
-  descripcion      varchar(200)    [not null]
-  monto            decimal(15,2)   [not null, note: 'HNL. CHECK > 0']
-  fecha            date            [not null, note: 'Fecha real del movimiento. Informativa: la reporteria agrupa por anio/mes.']
-  metodo_pago      metodo_pago     [not null]
-  num_factura      varchar(40)     [null]
-  observaciones    varchar(200)    [null]
-  fecha_registro   timestamp       [not null, default: `CURRENT_TIMESTAMP`]
-
-  creado_por       int             [null]
-  modificado_por   int             [null]
-  creado_en        timestamp       [not null, default: `CURRENT_TIMESTAMP`]
-  modificado_en    timestamp       [null]
+  id_transaccion int [pk]
+  id_usuario int [not null]
+  id_presupuesto int [not null]
+  anio smallint [not null]
+  mes smallint [not null]
+  id_subcategoria int [not null]
+  id_obligacion int
+  tipo_transaccion varchar(20) [not null]
+  descripcion varchar(200) [not null]
+  monto decimal(15,2) [not null]
+  fecha date [not null]
+  metodo_pago varchar(30) [not null]
+  num_factura varchar(40)
+  observaciones varchar(200)
+  fecha_registro timestamp [not null]
+  creado_por int
+  modificado_por int
+  creado_en timestamp [not null]
+  modificado_en timestamp
 
   indexes {
-    (id_presupuesto, anio, mes)  [name: 'idx_trx_presupuesto_periodo']
-    (id_subcategoria, anio, mes) [name: 'idx_trx_subcategoria_periodo']
-    (id_usuario, anio, mes)      [name: 'idx_trx_usuario_periodo']
-    id_obligacion
-    fecha
+    (id_presupuesto, anio, mes)
+    (id_subcategoria, anio, mes)
+    (id_usuario, anio, mes)
   }
-
-  Note: '''
-  Movimientos financieros reales. Fuente unica para calcular el presupuesto
-  ejecutado y toda la reporteria.
-
-  NO existe FK hacia PRESUPUESTO_DETALLE. La comparacion presupuestado vs
-  ejecutado se hace por JOIN logico:
-    PRESUPUESTO_DETALLE.id_presupuesto = TRANSACCION.id_presupuesto
-    AND PRESUPUESTO_DETALLE.id_subcategoria = TRANSACCION.id_subcategoria
-    filtrando por TRANSACCION.anio y TRANSACCION.mes
-
-  Los tres indices compuestos sobre (anio, mes) sostienen las funciones
-  fn_calcular_monto_ejecutado, fn_calcular_porcentaje_ejecutado y los
-  reportes 1, 2 y 3.
-  '''
 }
 
-// =====================================================================
-//  RELACIONES
-// =====================================================================
-
-// --- Jerarquia de clasificacion ---
-Ref: USUARIO.id_usuario < CATEGORIA.id_usuario                       // NULL = categoria del sistema
-Ref: CATEGORIA.id_categoria < SUBCATEGORIA.id_categoria
-
-// --- Presupuesto ---
 Ref: USUARIO.id_usuario < PRESUPUESTO.id_usuario
+Ref: USUARIO.id_usuario < CATEGORIA.id_usuario
+Ref: CATEGORIA.id_categoria < SUBCATEGORIA.id_categoria
 Ref: PRESUPUESTO.id_presupuesto < PRESUPUESTO_DETALLE.id_presupuesto
 Ref: SUBCATEGORIA.id_subcategoria < PRESUPUESTO_DETALLE.id_subcategoria
-
-// --- Obligaciones fijas ---
 Ref: USUARIO.id_usuario < OBLIGACION_FIJA.id_usuario
 Ref: SUBCATEGORIA.id_subcategoria < OBLIGACION_FIJA.id_subcategoria
-
-// --- Transacciones ---
 Ref: USUARIO.id_usuario < TRANSACCION.id_usuario
 Ref: PRESUPUESTO.id_presupuesto < TRANSACCION.id_presupuesto
 Ref: SUBCATEGORIA.id_subcategoria < TRANSACCION.id_subcategoria
-Ref: OBLIGACION_FIJA.id_obligacion < TRANSACCION.id_obligacion       // opcional
-
-// --- Auditoria (los 7 pares creado_por / modificado_por) ---
-Ref: USUARIO.id_usuario < USUARIO.creado_por
-Ref: USUARIO.id_usuario < USUARIO.modificado_por
-Ref: USUARIO.id_usuario < CATEGORIA.creado_por
-Ref: USUARIO.id_usuario < CATEGORIA.modificado_por
-Ref: USUARIO.id_usuario < SUBCATEGORIA.creado_por
-Ref: USUARIO.id_usuario < SUBCATEGORIA.modificado_por
-Ref: USUARIO.id_usuario < PRESUPUESTO.creado_por
-Ref: USUARIO.id_usuario < PRESUPUESTO.modificado_por
-Ref: USUARIO.id_usuario < PRESUPUESTO_DETALLE.creado_por
-Ref: USUARIO.id_usuario < PRESUPUESTO_DETALLE.modificado_por
-Ref: USUARIO.id_usuario < OBLIGACION_FIJA.creado_por
-Ref: USUARIO.id_usuario < OBLIGACION_FIJA.modificado_por
-Ref: USUARIO.id_usuario < TRANSACCION.creado_por
-Ref: USUARIO.id_usuario < TRANSACCION.modificado_por
-
-// =====================================================================
-//  AGRUPACION VISUAL
-// =====================================================================
-
-TableGroup Clasificacion {
-  CATEGORIA
-  SUBCATEGORIA
-}
-
-TableGroup Planificacion {
-  PRESUPUESTO
-  PRESUPUESTO_DETALLE
-  OBLIGACION_FIJA
-}
-
-TableGroup Ejecucion {
-  TRANSACCION
-}
+Ref: OBLIGACION_FIJA.id_obligacion < TRANSACCION.id_obligacion
