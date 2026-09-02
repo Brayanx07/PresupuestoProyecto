@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.env
+.env.local
+
+# Build
+dist/
+build/
+.vite/
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Firebird
+*.fdb
+*.FDB
+*.fbk
+
+# Logs y temporales
+*.log
+tmp/
