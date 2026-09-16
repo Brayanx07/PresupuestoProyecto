@@ -9,15 +9,12 @@ rutas.post('/', async function (peticion, respuesta) {
     const datos = peticion.body;
 
     const resultado = await bd.ejecutar(
-      'EXECUTE PROCEDURE SP_INSERTAR_CATEGORIA(?, ?, ?, ?, ?, ?, ?, ?)',
+      'EXECUTE PROCEDURE SP_INSERTAR_USUARIO(?, ?, ?, ?, ?)',
       [
-        datos.id_usuario,
-        datos.nombre,
-        datos.descripcion,
-        datos.tipo,
-        datos.icono,
-        datos.color,
-        datos.orden,
+        datos.nombres,
+        datos.apellidos,
+        datos.correo,
+        datos.salario,
         datos.creado_por
       ]
     );
@@ -30,15 +27,7 @@ rutas.post('/', async function (peticion, respuesta) {
 
 rutas.get('/', async function (peticion, respuesta) {
   try {
-    const idUsuario = peticion.query.usuario;
-    const tipo = peticion.query.tipo || null;
-
-    if (!idUsuario) {
-      respuesta.status(400).json({ mensaje: 'Falta el parametro usuario' });
-      return;
-    }
-
-    const filas = await bd.ejecutar('SELECT * FROM SP_LISTAR_CATEGORIAS(?, ?)', [idUsuario, tipo]);
+    const filas = await bd.ejecutar('SELECT * FROM SP_LISTAR_USUARIOS', []);
 
     respuesta.json(filas);
   } catch (error) {
@@ -48,10 +37,13 @@ rutas.get('/', async function (peticion, respuesta) {
 
 rutas.get('/:id', async function (peticion, respuesta) {
   try {
-    const filas = await bd.ejecutar('SELECT * FROM SP_CONSULTAR_CATEGORIA(?)', [peticion.params.id]);
+    const filas = await bd.ejecutar(
+      'SELECT * FROM SP_CONSULTAR_USUARIO(?)',
+      [peticion.params.id]
+    );
 
     if (filas.length === 0) {
-      respuesta.status(404).json({ mensaje: 'No existe esa categoria' });
+      respuesta.status(404).json({ mensaje: 'No existe ese usuario' });
       return;
     }
 
@@ -66,29 +58,28 @@ rutas.put('/:id', async function (peticion, respuesta) {
     const datos = peticion.body;
 
     const existe = await bd.ejecutar(
-      'SELECT * FROM SP_CONSULTAR_CATEGORIA(?)',
+      'SELECT * FROM SP_CONSULTAR_USUARIO(?)',
       [peticion.params.id]
     );
 
     if (existe.length === 0) {
-      respuesta.status(404).json({ mensaje: 'No existe esa categoria' });
+      respuesta.status(404).json({ mensaje: 'No existe ese usuario' });
       return;
     }
 
     await bd.ejecutar(
-      'EXECUTE PROCEDURE SP_ACTUALIZAR_CATEGORIA(?, ?, ?, ?, ?, ?, ?)',
+      'EXECUTE PROCEDURE SP_ACTUALIZAR_USUARIO(?, ?, ?, ?, ?, ?)',
       [
         peticion.params.id,
-        datos.nombre,
-        datos.descripcion,
-        datos.icono,
-        datos.color,
-        datos.orden,
+        datos.nombres,
+        datos.apellidos,
+        datos.correo,
+        datos.salario,
         datos.modificado_por
       ]
     );
 
-    respuesta.json({ mensaje: 'Categoria actualizada' });
+    respuesta.json({ mensaje: 'Usuario actualizado' });
   } catch (error) {
     respuesta.status(500).json({ mensaje: error.message });
   }
@@ -96,19 +87,29 @@ rutas.put('/:id', async function (peticion, respuesta) {
 
 rutas.delete('/:id', async function (peticion, respuesta) {
   try {
+    const modificadoPor = peticion.query.modificado_por;
+
+    if (!modificadoPor) {
+      respuesta.status(400).json({ mensaje: 'Falta el parametro modificado_por' });
+      return;
+    }
+
     const existe = await bd.ejecutar(
-      'SELECT * FROM SP_CONSULTAR_CATEGORIA(?)',
+      'SELECT * FROM SP_CONSULTAR_USUARIO(?)',
       [peticion.params.id]
     );
 
     if (existe.length === 0) {
-      respuesta.status(404).json({ mensaje: 'No existe esa categoria' });
+      respuesta.status(404).json({ mensaje: 'No existe ese usuario' });
       return;
     }
 
-    await bd.ejecutar('EXECUTE PROCEDURE SP_ELIMINAR_CATEGORIA(?)', [peticion.params.id]);
+    await bd.ejecutar(
+      'EXECUTE PROCEDURE SP_ELIMINAR_USUARIO(?, ?)',
+      [peticion.params.id, modificadoPor]
+    );
 
-    respuesta.json({ mensaje: 'Categoria eliminada' });
+    respuesta.json({ mensaje: 'Usuario desactivado' });
     } catch (error) {
     responderError(error, respuesta);
   }

@@ -1,5 +1,6 @@
 const express = require('express');
 const bd = require('../db/conexion');
+const { responderError } = require('../errores');
 
 const rutas = express.Router();
 
@@ -18,7 +19,7 @@ rutas.post('/', async function (peticion, respuesta) {
     );
 
     respuesta.status(201).json({ id: resultado.NUEVO_ID });
-  } catch (error) {
+    } catch (error) {
     respuesta.status(500).json({ mensaje: error.message });
   }
 });
@@ -107,8 +108,8 @@ rutas.delete('/:id', async function (peticion, respuesta) {
     await bd.ejecutar('EXECUTE PROCEDURE SP_ELIMINAR_SUBCATEGORIA(?)', [peticion.params.id]);
 
     respuesta.json({ mensaje: 'Subcategoria eliminada' });
-  } catch (error) {
-    respuesta.status(500).json({ mensaje: error.message });
+    } catch (error) {
+    responderError(error, respuesta);
   }
 });
 
