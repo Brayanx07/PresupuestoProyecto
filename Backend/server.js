@@ -7,6 +7,9 @@ const rutasCategorias = require('./rutas/categorias');
 const rutasSubcategorias = require('./rutas/subcategorias');
 const rutasUsuarios = require('./rutas/usuarios');
 const rutasPresupuestos = require('./rutas/presupuestos');
+const rutasDetalles = require('./rutas/detalles');
+const rutasObligaciones = require('./rutas/obligaciones');
+
 
 const app = express();
 
@@ -16,6 +19,8 @@ app.use('/categorias', rutasCategorias);
 app.use('/subcategorias', rutasSubcategorias);
 app.use('/usuarios', rutasUsuarios);
 app.use('/presupuestos', rutasPresupuestos);
+app.use('/detalles', rutasDetalles);
+app.use('/obligaciones', rutasObligaciones);
 
 
 app.get('/prueba', async function (peticion, respuesta) {
