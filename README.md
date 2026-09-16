@@ -13,7 +13,7 @@ Los montos se manejan en Lempiras (HNL).
 
 - Base de datos: Firebird 5.0
 - Backend: Node.js
-- Frontend: React
+- Frontend: HTML, CSS, JAVASCRIPT
 
 Toda la lógica de negocio vive en la base de datos. El backend no ejecuta SQL
 directo, únicamente invoca procedimientos almacenados y funciones.
