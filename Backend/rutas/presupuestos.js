@@ -120,4 +120,82 @@ rutas.delete('/:id', async function (peticion, respuesta) {
   }
 });
 
+rutas.post('/completo', async function (peticion, respuesta) {
+  try {
+    const datos = peticion.body;
+
+    const resultado = await bd.ejecutar(
+      'EXECUTE PROCEDURE SP_CREAR_PRESUPUESTO_COMPLETO(?, ?, ?, ?, ?, ?, ?)',
+      [
+        datos.id_usuario,
+        datos.nombre,
+        datos.anio_inicio,
+        datos.mes_inicio,
+        datos.anio_fin,
+        datos.mes_fin,
+        datos.creado_por
+      ]
+    );
+
+    const idNuevo = resultado.NUEVO_ID;
+
+    if (datos.detalles) {
+      for (let i = 0; i < datos.detalles.length; i++) {
+        const detalle = datos.detalles[i];
+
+        await bd.ejecutar(
+          'EXECUTE PROCEDURE SP_INSERTAR_PRESUPUESTO_DETALLE(?, ?, ?, ?, ?)',
+          [
+            idNuevo,
+            detalle.id_subcategoria,
+            detalle.monto,
+            detalle.observaciones,
+            datos.creado_por
+          ]
+        );
+      }
+
+      await bd.ejecutar(
+        'EXECUTE PROCEDURE SP_RECALCULAR_TOTALES_PRESUPUESTO(?)',
+        [idNuevo]
+      );
+    }
+
+    respuesta.status(201).json({ id: idNuevo });
+  } catch (error) {
+    responderError(error, respuesta);
+  }
+});
+
+rutas.post('/:id/cerrar', async function (peticion, respuesta) {
+  try {
+    const modificadoPor = peticion.body.modificado_por;
+
+    if (!modificadoPor) {
+      respuesta.status(400).json({ mensaje: 'Falta modificado_por' });
+      return;
+    }
+
+    const existe = await bd.ejecutar(
+      'SELECT * FROM SP_CONSULTAR_PRESUPUESTO(?)',
+      [peticion.params.id]
+    );
+
+    if (existe.length === 0) {
+      respuesta.status(404).json({ mensaje: 'No existe ese presupuesto' });
+      return;
+    }
+
+    const filas = await bd.ejecutar(
+      'SELECT * FROM SP_CERRAR_PRESUPUESTO(?, ?)',
+      [peticion.params.id, modificadoPor]
+    );
+
+    respuesta.json(filas[0]);
+  } catch (error) {
+    responderError(error, respuesta);
+  }
+});
+
+
 module.exports = rutas;

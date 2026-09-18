@@ -9,6 +9,8 @@ const rutasUsuarios = require('./rutas/usuarios');
 const rutasPresupuestos = require('./rutas/presupuestos');
 const rutasDetalles = require('./rutas/detalles');
 const rutasObligaciones = require('./rutas/obligaciones');
+const rutasTransacciones = require('./rutas/transacciones');
+const rutasReportes = require('./rutas/reportes');
 
 
 const app = express();
@@ -21,6 +23,8 @@ app.use('/usuarios', rutasUsuarios);
 app.use('/presupuestos', rutasPresupuestos);
 app.use('/detalles', rutasDetalles);
 app.use('/obligaciones', rutasObligaciones);
+app.use('/transacciones', rutasTransacciones);
+app.use('/reportes', rutasReportes);
 
 
 app.get('/prueba', async function (peticion, respuesta) {

@@ -6,7 +6,7 @@ function responderError(error, respuesta) {
     let mensaje = '';
 
     for (let i = 2; i < partes.length; i++) {
-      if (partes[i].startsWith('At procedure')) {
+            if (partes[i].startsWith('At ')) {
         break;
       }
 
