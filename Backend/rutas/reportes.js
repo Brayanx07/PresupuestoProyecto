@@ -82,6 +82,7 @@ rutas.get('/obligaciones', async function (peticion, respuesta) {
     const anio = peticion.query.anio;
     const mes = peticion.query.mes;
     const presupuesto = peticion.query.presupuesto;
+    const estado = peticion.query.estado || null;
 
     if (!usuario || !anio || !mes || !presupuesto) {
       respuesta.status(400).json({ mensaje: 'Faltan parametros: usuario, anio, mes, presupuesto' });
@@ -89,8 +90,8 @@ rutas.get('/obligaciones', async function (peticion, respuesta) {
     }
 
     const filas = await bd.ejecutar(
-      'SELECT * FROM SP_PROCESAR_OBLIGACIONES_MES(?, ?, ?, ?)',
-      [usuario, anio, mes, presupuesto]
+      'SELECT * FROM SP_PROCESAR_OBLIGACIONES_MES(?, ?, ?, ?, ?)',
+      [usuario, anio, mes, presupuesto, estado]
     );
 
     respuesta.json(filas);
@@ -168,6 +169,29 @@ rutas.get('/gastos-categoria', async function (peticion, respuesta) {
     const filas = await bd.ejecutar(
       'SELECT * FROM SP_REPORTE_GASTOS_CATEGORIA(?, ?, ?, ?)',
       [usuario, presupuesto, anio, mes]
+    );
+
+    respuesta.json(filas);
+  } catch (error) {
+    responderError(error, respuesta);
+  }
+});
+
+rutas.get('/cumplimiento', async function (peticion, respuesta) {
+  try {
+    const presupuesto = peticion.query.presupuesto;
+    const anio = peticion.query.anio;
+    const mes = peticion.query.mes;
+    const tipo = peticion.query.tipo || null;
+
+    if (!presupuesto || !anio || !mes) {
+      respuesta.status(400).json({ mensaje: 'Faltan parametros: presupuesto, anio, mes' });
+      return;
+    }
+
+    const filas = await bd.ejecutar(
+      'SELECT * FROM SP_REPORTE_CUMPLIMIENTO(?, ?, ?, ?)',
+      [presupuesto, anio, mes, tipo]
     );
 
     respuesta.json(filas);
