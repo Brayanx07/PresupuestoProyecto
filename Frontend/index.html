@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presupuesto Mensual</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+  <div class="contenedor">
+
+    <aside class="menu">
+
+      <div class="marca">
+        <h1>Presupuesto</h1>
+        <span>Control mensual</span>
+      </div>
+
+      <nav>
+        <button class="opcion activa" data-seccion="inicio">Inicio</button>
+        <button class="opcion" data-seccion="transacciones">Transacciones</button>
+        <button class="opcion" data-seccion="presupuesto">Presupuesto</button>
+        <button class="opcion" data-seccion="obligaciones">Obligaciones</button>
+        <button class="opcion" data-seccion="categorias">Categorias</button>
+        <button class="opcion" data-seccion="reportes">Reportes</button>
+      </nav>
+
+      <div class="pie">
+        <span class="inicial">BP</span>
+        <div>
+          <strong>Brayan Pinel</strong>
+          <small>Lempiras (HNL)</small>
+        </div>
+      </div>
+
+    </aside>
+
+    <main class="contenido">
+
+      <header class="barra">
+
+        <div class="campo">
+          <label for="selectorPresupuesto">Presupuesto</label>
+          <select id="selectorPresupuesto"></select>
+        </div>
+
+        <div class="campo">
+          <label for="selectorAnio">Anio</label>
+          <input type="number" id="selectorAnio" value="2026">
+        </div>
+
+        <div class="campo">
+          <label for="selectorMes">Mes</label>
+          <select id="selectorMes">
+            <option value="1">Enero</option>
+            <option value="2">Febrero</option>
+            <option value="3">Marzo</option>
+            <option value="4">Abril</option>
+            <option value="5">Mayo</option>
+            <option value="6">Junio</option>
+            <option value="7">Julio</option>
+            <option value="8">Agosto</option>
+            <option value="9">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12">Diciembre</option>
+          </select>
+        </div>
+
+        <div class="periodo">
+          <span id="periodoTexto">Enero 2026</span>
+        </div>
+
+      </header>
+
+      <div id="aviso" class="aviso"></div>
+
+      <section id="inicio" class="seccion visible">
+
+        <div class="titulo">
+          <h2>Inicio</h2>
+          <p>Resumen del periodo seleccionado</p>
+        </div>
+
+        <div class="tarjetas">
+
+          <article class="tarjeta verde">
+            <span class="etiqueta">Ingresos</span>
+            <strong class="valor" id="kpiIngresos">L 0.00</strong>
+            <span class="nota">Entradas del mes</span>
+          </article>
+
+          <article class="tarjeta rojo">
+            <span class="etiqueta">Gastos</span>
+            <strong class="valor" id="kpiGastos">L 0.00</strong>
+            <span class="nota">Salidas del mes</span>
+          </article>
+
+          <article class="tarjeta dorado">
+            <span class="etiqueta">Ahorro</span>
+            <strong class="valor" id="kpiAhorro">L 0.00</strong>
+            <span class="nota">Apartado del mes</span>
+          </article>
+
+          <article class="tarjeta marino">
+            <span class="etiqueta">Balance</span>
+            <strong class="valor" id="kpiBalance">L 0.00</strong>
+            <span class="nota">Ingresos menos gastos y ahorro</span>
+          </article>
+
+        </div>
+
+        <div class="bloque">
+          <h3>Obligaciones del mes</h3>
+          <div id="listaAlertas" class="alertas"></div>
+        </div>
+
+      </section>
+
+            <section id="transacciones" class="seccion">
+
+        <div class="titulo">
+          <h2>Transacciones</h2>
+          <p>Movimientos registrados en el mes</p>
+        </div>
+
+        <div id="txFueraVigencia" class="nota-bloqueo">
+          Este mes esta fuera de la vigencia del presupuesto seleccionado.
+          Podes consultar los movimientos, pero para registrar uno nuevo
+          elegi un mes dentro del periodo o crea un presupuesto que lo cubra.
+        </div>
+
+
+        <form id="formTransaccion" class="formulario">
+
+          <div class="campo-form">
+            <label for="txSubcategoria">Subcategoria</label>
+            <select id="txSubcategoria" required></select>
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="txTipo">Tipo</label>
+            <input type="text" id="txTipo" readonly>
+          </div>
+
+          <div class="campo-form ancho">
+            <label for="txDescripcion">Descripcion</label>
+            <input type="text" id="txDescripcion" required>
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="txMonto">Monto</label>
+            <input type="number" id="txMonto" step="0.01" min="0.01" required>
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="txFecha">Fecha</label>
+            <input type="date" id="txFecha" required>
+          </div>
+
+          <div class="campo-form">
+            <label for="txMetodo">Metodo de pago</label>
+            <select id="txMetodo">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta_debito">Tarjeta de debito</option>
+              <option value="tarjeta_credito">Tarjeta de credito</option>
+              <option value="transferencia">Transferencia</option>
+            </select>
+          </div>
+
+          <button type="submit" class="boton">Registrar</button>
+
+        </form>
+
+        <div class="filtros">
+          <label for="txFiltroTipo">Mostrar</label>
+          <select id="txFiltroTipo">
+            <option value="">Todos los movimientos</option>
+            <option value="ingreso">Solo ingresos</option>
+            <option value="gasto">Solo gastos</option>
+            <option value="ahorro">Solo ahorro</option>
+          </select>
+          <span id="txResumen" class="resumen"></span>
+        </div>
+
+        <div id="txTabla"></div>
+
+      </section>
+
+      <section id="presupuesto" class="seccion">
+
+        <div class="titulo">
+          <h2>Presupuesto</h2>
+          <p>Montos asignados a cada subcategoria</p>
+        </div>
+
+        <form id="formDetalle" class="formulario">
+
+          <div class="campo-form">
+            <label for="dtSubcategoria">Subcategoria</label>
+            <select id="dtSubcategoria" required></select>
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="dtMonto">Monto mensual</label>
+            <input type="number" id="dtMonto" step="0.01" min="0" required>
+          </div>
+
+          <div class="campo-form ancho">
+            <label for="dtObservaciones">Observaciones</label>
+            <input type="text" id="dtObservaciones">
+          </div>
+
+          <div class="acciones">
+            <button type="submit" class="boton" id="dtBoton">Agregar renglon</button>
+            <button type="button" class="boton-claro" id="dtCancelar">Cancelar</button>
+          </div>
+
+        </form>
+
+        <div class="filtros">
+          <span class="resumen" id="dtResumen"></span>
+        </div>
+
+        <div id="dtTabla"></div>
+
+      </section>
+
+      <section id="obligaciones" class="seccion">
+
+        <div class="titulo">
+          <h2>Obligaciones</h2>
+          <p>Pagos fijos y su estado de cumplimiento</p>
+        </div>
+
+        <form id="formObligacion" class="formulario">
+
+          <div class="campo-form">
+            <label for="obNombre">Nombre</label>
+            <input type="text" id="obNombre" required>
+          </div>
+
+          <div class="campo-form">
+            <label for="obSubcategoria">Subcategoria</label>
+            <select id="obSubcategoria" required></select>
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="obMonto">Monto mensual</label>
+            <input type="number" id="obMonto" step="0.01" min="0.01" required>
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="obDia">Dia de vencimiento</label>
+            <input type="number" id="obDia" min="1" max="31" required>
+          </div>
+
+          <div class="campo-form ancho">
+            <label for="obDescripcion">Descripcion</label>
+            <input type="text" id="obDescripcion">
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="obInicio">Vigente desde</label>
+            <input type="date" id="obInicio" required>
+          </div>
+
+          <div class="acciones">
+            <button type="submit" class="boton">Agregar obligacion</button>
+          </div>
+
+        </form>
+
+        <div class="filtros">
+          <label for="obFiltroEstado">Mostrar</label>
+          <select id="obFiltroEstado">
+            <option value="">Todas</option>
+            <option value="pagado">Pagadas</option>
+            <option value="pendiente">Pendientes</option>
+            <option value="vencido">Vencidas</option>
+          </select>
+          <span class="resumen" id="obResumen"></span>
+        </div>
+
+        <div id="obTabla"></div>
+
+      </section>
+
+      <section id="categorias" class="seccion">
+
+        <div class="titulo">
+          <h2>Categorias</h2>
+          <p>Organizacion de ingresos, gastos y ahorro</p>
+        </div>
+
+        <div class="columnas">
+
+          <form id="formCategoria" class="formulario compacto">
+
+            <h4>Nueva categoria</h4>
+
+            <div class="campo-form">
+              <label for="ctNombre">Nombre</label>
+              <input type="text" id="ctNombre" required>
+            </div>
+
+            <div class="campo-form">
+              <label for="ctTipo">Tipo</label>
+              <select id="ctTipo">
+                <option value="gasto">Gasto</option>
+                <option value="ingreso">Ingreso</option>
+                <option value="ahorro">Ahorro</option>
+              </select>
+            </div>
+
+            <div class="campo-form">
+              <label for="ctDescripcion">Descripcion</label>
+              <input type="text" id="ctDescripcion">
+            </div>
+
+            <div class="pareja">
+              <div class="campo-form">
+                <label for="ctColor">Color</label>
+                <input type="color" id="ctColor" value="#2B4E77">
+              </div>
+
+              <div class="campo-form">
+                <label for="ctOrden">Orden</label>
+                <input type="number" id="ctOrden" min="1" value="10" required>
+              </div>
+            </div>
+
+            <button type="submit" class="boton">Crear categoria</button>
+
+          </form>
+
+          <form id="formSubcategoria" class="formulario compacto">
+
+            <h4>Nueva subcategoria</h4>
+
+            <div class="campo-form">
+              <label for="scCategoria">Categoria</label>
+              <select id="scCategoria" required></select>
+            </div>
+
+            <div class="campo-form">
+              <label for="scNombre">Nombre</label>
+              <input type="text" id="scNombre" required>
+            </div>
+
+            <div class="campo-form">
+              <label for="scDescripcion">Descripcion</label>
+              <input type="text" id="scDescripcion">
+            </div>
+
+            <button type="submit" class="boton">Crear subcategoria</button>
+
+          </form>
+
+        </div>
+
+        <div id="catLista" class="grupos"></div>
+
+      </section>
+
+      <section id="reportes" class="seccion">
+        <div class="titulo">
+          <h2>Reportes</h2>
+          <p>Analisis del presupuesto</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/transacciones.js"></script>
+  <script src="js/presupuesto.js"></script>
+  <script src="js/obligaciones.js"></script>
+  <script src="js/categorias.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
