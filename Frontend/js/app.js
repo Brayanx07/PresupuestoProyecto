@@ -1,27 +1,62 @@
 const USUARIO = 1;
 
-const NOMBRES_MES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-
 let presupuestoActual = null;
 let anioActual = 2026;
 let mesActual = 1;
 let listaPresupuestos = [];
 let arbolCategorias = [];
+let seccionActual = 'inicio';
+let resolverModal = null;
 
-function formatearMoneda(monto) {
-  const numero = Number(monto) || 0;
+const CARGADORES = {
+  inicio: cargarInicio,
+  transacciones: cargarTransacciones,
+  presupuesto: cargarDetalles,
+  obligaciones: cargarObligaciones,
+  categorias: cargarCategorias,
+  reportes: cargarReportes
+};
 
-  return 'L ' + numero.toLocaleString('es-HN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+function confirmar(titulo, mensaje, textoBoton) {
+  document.getElementById('modalTitulo').textContent = titulo;
+  document.getElementById('modalMensaje').textContent = mensaje;
+  document.getElementById('modalConfirmar').textContent = textoBoton;
+  document.getElementById('modal').classList.add('visible');
+
+  return new Promise(function (resolver) {
+    resolverModal = resolver;
   });
 }
 
-function formatearFecha(valor) {
-  const fecha = new Date(valor);
+function cerrarModal(respuesta) {
+  document.getElementById('modal').classList.remove('visible');
 
-  return fecha.getDate() + ' de ' + NOMBRES_MES[fecha.getMonth()].toLowerCase();
+  if (resolverModal) {
+    resolverModal(respuesta);
+    resolverModal = null;
+  }
+}
+
+function conectarModal() {
+  document.getElementById('modalCancelar').addEventListener('click', function () {
+    cerrarModal(false);
+  });
+
+  document.getElementById('modalConfirmar').addEventListener('click', function () {
+    cerrarModal(true);
+  });
+
+  document.getElementById('modal').addEventListener('click', function (evento) {
+    if (evento.target === this) {
+      cerrarModal(false);
+    }
+  });
+
+  document.addEventListener('keydown', function (evento) {
+    if (evento.key === 'Escape' && resolverModal) {
+      cerrarModal(false);
+    }
+  });
 }
 
 function mostrarAviso(texto, tipo) {
@@ -35,51 +70,9 @@ function mostrarAviso(texto, tipo) {
   }, 5000);
 }
 
-function mostrarSeccion(nombre) {
-  const secciones = document.querySelectorAll('.seccion');
-
-  for (let i = 0; i < secciones.length; i++) {
-    secciones[i].classList.remove('visible');
-  }
-
-  document.getElementById(nombre).classList.add('visible');
-
-  const opciones = document.querySelectorAll('.opcion');
-
-  for (let i = 0; i < opciones.length; i++) {
-    opciones[i].classList.remove('activa');
-
-    if (opciones[i].dataset.seccion === nombre) {
-      opciones[i].classList.add('activa');
-    }
-  }
-}
-
 function actualizarPeriodo() {
   document.getElementById('periodoTexto').textContent =
     NOMBRES_MES[mesActual - 1] + ' ' + anioActual;
-}
-
-async function cargarPresupuestos() {
-  listaPresupuestos = await pedir('/presupuestos?usuario=' + USUARIO);
-
-  const selector = document.getElementById('selectorPresupuesto');
-
-  selector.innerHTML = '';
-
-  for (let i = 0; i < listaPresupuestos.length; i++) {
-    const opcion = document.createElement('option');
-
-    opcion.value = listaPresupuestos[i].ID_PRESUPUESTO;
-    opcion.textContent = listaPresupuestos[i].NOMBRE_PRESUPUESTO;
-
-    selector.appendChild(opcion);
-  }
-
-  if (listaPresupuestos.length > 0) {
-    presupuestoActual = Number(selector.value);
-    acomodarPeriodo();
-  }
 }
 
 function buscarPresupuesto() {
@@ -104,6 +97,8 @@ function acomodarPeriodo() {
 
   document.getElementById('selectorAnio').value = anioActual;
   document.getElementById('selectorMes').value = mesActual;
+
+  acomodarRango();
 }
 
 function dentroDeVigencia() {
@@ -120,6 +115,30 @@ function dentroDeVigencia() {
   return actual >= desde && actual <= hasta;
 }
 
+async function cargarPresupuestos() {
+  listaPresupuestos = await pedir('/presupuestos?usuario=' + USUARIO);
+
+  const selector = document.getElementById('selectorPresupuesto');
+
+  selector.innerHTML = '';
+
+  for (let i = 0; i < listaPresupuestos.length; i++) {
+    const opcion = document.createElement('option');
+
+    opcion.value = listaPresupuestos[i].ID_PRESUPUESTO;
+    opcion.textContent = listaPresupuestos[i].NOMBRE_PRESUPUESTO;
+
+    selector.appendChild(opcion);
+  }
+
+  if (listaPresupuestos.length > 0) {
+    presupuestoActual = Number(selector.value);
+    acomodarPeriodo();
+  } else {
+    presupuestoActual = null;
+  }
+}
+
 async function cargarArbol() {
   arbolCategorias = [];
 
@@ -133,6 +152,12 @@ async function cargarArbol() {
       subcategorias: subcategorias
     });
   }
+
+  llenarSubcategorias('txSubcategoria');
+  llenarSubcategorias('obSubcategoria');
+  llenarCategorias('scCategoria');
+
+  actualizarTipo();
 }
 
 function llenarSubcategorias(id) {
@@ -187,18 +212,7 @@ function llenarCategorias(id) {
   }
 }
 
-async function cargarListas() {
-  await cargarArbol();
-
-  llenarSubcategorias('txSubcategoria');
-  llenarSubcategorias('dtSubcategoria');
-  llenarSubcategorias('obSubcategoria');
-  llenarCategorias('scCategoria');
-
-  actualizarTipo();
-}
-
-async function cargarBalance() {
+async function cargarInicio() {
   const datos = await pedir('/reportes/balance?usuario=' + USUARIO +
     '&presupuesto=' + presupuestoActual +
     '&anio=' + anioActual +
@@ -208,21 +222,7 @@ async function cargarBalance() {
   document.getElementById('kpiGastos').textContent = formatearMoneda(datos.TOTAL_GASTOS);
   document.getElementById('kpiAhorro').textContent = formatearMoneda(datos.TOTAL_AHORROS);
   document.getElementById('kpiBalance').textContent = formatearMoneda(datos.BALANCE_FINAL);
-}
 
-function textoObligacion(obligacion) {
-  if (obligacion.ESTADO_PAGO === 'pagado' && obligacion.FECHA_ULTIMO_PAGO) {
-    return 'Pagado el ' + formatearFecha(obligacion.FECHA_ULTIMO_PAGO);
-  }
-
-  if (obligacion.ALERTA) {
-    return obligacion.ALERTA;
-  }
-
-  return 'Vence el ' + obligacion.DIA_VENCIMIENTO + ' de ' + NOMBRES_MES[mesActual - 1].toLowerCase();
-}
-
-async function cargarAlertas() {
   const lista = await pedir('/reportes/obligaciones?usuario=' + USUARIO +
     '&presupuesto=' + presupuestoActual +
     '&anio=' + anioActual +
@@ -230,44 +230,29 @@ async function cargarAlertas() {
 
   const contenedor = document.getElementById('listaAlertas');
 
-  contenedor.innerHTML = '';
-
   if (lista.length === 0) {
     contenedor.innerHTML = '<div class="vacio">No hay obligaciones vigentes</div>';
     return;
   }
 
+  let bloques = '';
+
   for (let i = 0; i < lista.length; i++) {
-    const obligacion = lista[i];
+    const o = lista[i];
 
-    const fila = document.createElement('div');
-    fila.className = 'alerta';
-
-    const marca = document.createElement('span');
-    marca.className = 'marca-estado ' + obligacion.ESTADO_PAGO;
-
-    const nombre = document.createElement('span');
-    nombre.className = 'alerta-nombre';
-    nombre.textContent = obligacion.NOMBRE_OBLIGACION;
-
-    const detalle = document.createElement('span');
-    detalle.className = 'alerta-detalle';
-    detalle.textContent = textoObligacion(obligacion);
-
-    const monto = document.createElement('span');
-    monto.className = 'alerta-monto';
-    monto.textContent = formatearMoneda(obligacion.MONTO_FIJO_MENSUAL);
-
-    fila.appendChild(marca);
-    fila.appendChild(nombre);
-    fila.appendChild(detalle);
-    fila.appendChild(monto);
-
-    contenedor.appendChild(fila);
+    bloques = bloques +
+      '<div class="alerta">' +
+      '<span class="marca-estado ' + o.ESTADO_PAGO + '"></span>' +
+      '<span class="alerta-nombre">' + escapar(o.NOMBRE_OBLIGACION) + '</span>' +
+      '<span class="alerta-detalle">' + textoObligacion(o) + '</span>' +
+      '<span class="alerta-monto">' + formatearMoneda(o.MONTO_FIJO_MENSUAL) + '</span>' +
+      '</div>';
   }
+
+  contenedor.innerHTML = bloques;
 }
 
-async function actualizarTodo() {
+async function refrescar() {
   try {
     actualizarPeriodo();
 
@@ -275,14 +260,34 @@ async function actualizarTodo() {
       return;
     }
 
-    await cargarBalance();
-    await cargarAlertas();
-    await cargarTransacciones();
-    await cargarDetalles();
-    await cargarObligaciones();
+    await CARGADORES[seccionActual]();
   } catch (error) {
     mostrarAviso(error.message, 'error');
   }
+}
+
+function mostrarSeccion(nombre) {
+  seccionActual = nombre;
+
+  const secciones = document.querySelectorAll('.seccion');
+
+  for (let i = 0; i < secciones.length; i++) {
+    secciones[i].classList.remove('visible');
+  }
+
+  document.getElementById(nombre).classList.add('visible');
+
+  const opciones = document.querySelectorAll('.opcion');
+
+  for (let i = 0; i < opciones.length; i++) {
+    opciones[i].classList.remove('activa');
+
+    if (opciones[i].dataset.seccion === nombre) {
+      opciones[i].classList.add('activa');
+    }
+  }
+
+  refrescar();
 }
 
 function conectarEventos() {
@@ -297,32 +302,33 @@ function conectarEventos() {
   document.getElementById('selectorPresupuesto').addEventListener('change', function () {
     presupuestoActual = Number(this.value);
     acomodarPeriodo();
-    actualizarTodo();
+    refrescar();
   });
 
   document.getElementById('selectorAnio').addEventListener('change', function () {
     anioActual = Number(this.value);
-    actualizarTodo();
+    refrescar();
   });
 
   document.getElementById('selectorMes').addEventListener('change', function () {
     mesActual = Number(this.value);
-    actualizarTodo();
+    refrescar();
   });
 
+  conectarModal();
   conectarTransacciones();
   conectarPresupuesto();
   conectarObligaciones();
   conectarCategorias();
+  conectarReportes();
 }
 
 async function iniciar() {
   try {
     conectarEventos();
     await cargarPresupuestos();
-    await cargarListas();
-    await cargarCategorias();
-    await actualizarTodo();
+    await cargarArbol();
+    await refrescar();
   } catch (error) {
     mostrarAviso(error.message, 'error');
   }

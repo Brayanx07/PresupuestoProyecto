@@ -747,3 +747,282 @@ td .marca-estado {
   color: var(--texto-suave);
   font-style: italic;
 }
+
+.cabecera-recurso {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  margin-bottom: 22px;
+  background: var(--beige-hueso);
+  border: 1px solid var(--borde);
+  border-left: 3px solid var(--marino);
+  border-radius: 10px;
+}
+
+.cabecera-recurso strong {
+  display: block;
+  font-size: 15px;
+  color: var(--marino);
+}
+
+.cabecera-recurso span {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--texto-suave);
+}
+
+.cabecera-recurso .boton-claro {
+  margin-left: auto;
+}
+
+.oculto {
+  display: none;
+}
+
+.pestanas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.pestana {
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--texto-suave);
+  background: none;
+  border: 1px solid transparent;
+  padding: 9px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.pestana:hover {
+  background: var(--beige-hueso);
+  color: var(--marino);
+}
+
+.pestana.activa {
+  background: var(--marino);
+  color: var(--blanco);
+  font-weight: 500;
+}
+
+.pestanas .boton {
+  margin-left: auto;
+}
+
+.reporte {
+  display: none;
+}
+
+.reporte.visible {
+  display: block;
+}
+
+.encabezado-reporte {
+  margin-bottom: 20px;
+}
+
+.encabezado-reporte h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--marino);
+}
+
+.encabezado-reporte p {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+.lienzo {
+  height: 320px;
+  padding: 18px;
+  margin-bottom: 24px;
+  background: var(--beige-hueso);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+}
+
+.lienzo.chico {
+  height: 280px;
+  margin-bottom: 0;
+}
+
+.doble {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+td .punto {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+tfoot td {
+  padding: 13px 14px;
+  font-weight: 600;
+  color: var(--marino);
+  border-top: 2px solid var(--borde);
+}
+
+tr.subtotal td {
+  background: var(--beige-hueso);
+  font-weight: 600;
+  color: var(--marino);
+}
+
+tr.subtotal:hover td {
+  background: var(--beige-hueso);
+}
+
+@media print {
+  .menu,
+  .barra,
+  .pestanas,
+  .filtros,
+  .aviso,
+  .titulo p {
+    display: none !important;
+  }
+
+  body {
+    background: #FFFFFF;
+  }
+
+  .contenedor {
+    display: block;
+  }
+
+  .contenido {
+    padding: 0;
+    max-width: none;
+  }
+
+  .seccion {
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
+
+  .lienzo {
+    background: #FFFFFF;
+    border: none;
+    page-break-inside: avoid;
+  }
+
+  .doble {
+    grid-template-columns: 300px 1fr;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 38, 63, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal.visible {
+  display: flex;
+}
+
+.modal-caja {
+  width: 100%;
+  max-width: 440px;
+  background: var(--blanco);
+  border-radius: 12px;
+  border-top: 3px solid var(--rojo);
+  padding: 28px 30px 24px 30px;
+  box-shadow: 0 20px 50px rgba(18, 38, 63, 0.28);
+}
+
+.modal-caja h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--marino);
+  margin-bottom: 10px;
+}
+
+.modal-caja p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--texto-suave);
+  margin-bottom: 24px;
+}
+
+.modal-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.boton.peligro {
+  background: var(--rojo);
+}
+
+.boton.peligro:hover {
+  background: #96333F;
+}
+
+@media print {
+  .modal {
+    display: none !important;
+  }
+}
+
+.modal-caja.pago {
+  max-width: 480px;
+  border-top-color: var(--marino);
+}
+
+.modal-caja.pago p {
+  margin-bottom: 20px;
+}
+
+.modal-caja.pago .pareja,
+.modal-caja.pago .campo-form {
+  margin-bottom: 18px;
+}
+
+.modal-caja.pago .modal-acciones {
+  margin-top: 4px;
+}
+
+.ficha.usada {
+  background: var(--blanco);
+  border-color: var(--marino-claro);
+}
+
+.asignado {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--marino);
+  padding: 2px 9px;
+  background: #EDF1F6;
+  border-radius: 12px;
+}

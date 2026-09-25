@@ -21,6 +21,17 @@ function responderError(error, respuesta) {
     return;
   }
 
+  if (texto.indexOf('PRIMARY or UNIQUE KEY') >= 0) {
+    respuesta.status(409).json({ mensaje: 'Ese registro ya existe' });
+    return;
+  }
+
+  if (texto.indexOf('FOREIGN KEY') >= 0) {
+    respuesta.status(409).json({ mensaje: 'No se puede completar la operacion porque hay registros relacionados' });
+    return;
+  }
+
+
   respuesta.status(500).json({ mensaje: texto });
 }
 

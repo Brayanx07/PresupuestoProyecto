@@ -1,17 +1,76 @@
-function estadoTexto(obligacion) {
+let obligacionPagando = null;
+
+function botonesFila(obligacion) {
+  const desactivar = '<button class="boton-mini" data-desactivar="' +
+    obligacion.ID_OBLIGACION + '">Desactivar</button>';
+
   if (obligacion.ESTADO_PAGO === 'pagado') {
-    return 'Pagado el ' + formatearFecha(obligacion.FECHA_ULTIMO_PAGO);
+    return desactivar;
   }
 
-  if (obligacion.DIAS_PARA_VENCER < 0) {
-    return 'Vencio hace ' + Math.abs(obligacion.DIAS_PARA_VENCER) + ' dias';
+  return '<button class="boton-mini claro" data-pagar="' +
+    obligacion.ID_OBLIGACION + '">Pagar</button> ' + desactivar;
+}
+
+async function abrirPago(id) {
+  if (!dentroDeVigencia()) {
+    mostrarAviso('El mes elegido esta fuera de la vigencia del presupuesto', 'error');
+    return;
   }
 
-  if (obligacion.DIAS_PARA_VENCER === 0) {
-    return 'Vence hoy';
+  try {
+    const obligacion = await pedir('/obligaciones/' + id);
+
+    obligacionPagando = obligacion;
+
+    document.getElementById('pagoDetalle').textContent =
+      obligacion.NOMBRE_OBLIGACION + ' · ' + obligacion.NOMBRE_SUBCATEGORIA +
+      ' · vence el dia ' + obligacion.DIA_VENCIMIENTO;
+
+    document.getElementById('pagoMonto').value = obligacion.MONTO_FIJO_MENSUAL;
+    document.getElementById('pagoFecha').value = fechaDelMes(obligacion.DIA_VENCIMIENTO);
+
+    document.getElementById('modalPago').classList.add('visible');
+  } catch (error) {
+    mostrarAviso(error.message, 'error');
+  }
+}
+
+function cerrarPago() {
+  document.getElementById('modalPago').classList.remove('visible');
+  obligacionPagando = null;
+}
+
+async function confirmarPago() {
+  if (!obligacionPagando) {
+    return;
   }
 
-  return 'Faltan ' + obligacion.DIAS_PARA_VENCER + ' dias';
+  try {
+    await enviar('/transacciones', 'POST', {
+      id_usuario: USUARIO,
+      id_presupuesto: presupuestoActual,
+      anio: anioActual,
+      mes: mesActual,
+      id_subcategoria: obligacionPagando.ID_SUBCATEGORIA,
+      id_obligacion: obligacionPagando.ID_OBLIGACION,
+      tipo: tipoDeSubcategoria(obligacionPagando.ID_SUBCATEGORIA),
+      descripcion: 'Pago de ' + obligacionPagando.NOMBRE_OBLIGACION,
+      monto: Number(document.getElementById('pagoMonto').value),
+      fecha: document.getElementById('pagoFecha').value,
+      metodo_pago: document.getElementById('pagoMetodo').value,
+      num_factura: null,
+      observaciones: null,
+      creado_por: USUARIO
+    });
+
+    cerrarPago();
+    mostrarAviso('Pago registrado', 'exito');
+
+    await refrescar();
+  } catch (error) {
+    mostrarAviso(error.message, 'error');
+  }
 }
 
 async function cargarObligaciones() {
@@ -53,13 +112,14 @@ async function cargarObligaciones() {
 
     filas = filas +
       '<tr>' +
-      '<td><span class="marca-estado ' + o.ESTADO_PAGO + '"></span> ' + o.NOMBRE_OBLIGACION + '</td>' +
-      '<td>' + o.NOMBRE_CATEGORIA + '</td>' +
+      '<td><span class="marca-estado ' + o.ESTADO_PAGO + '"></span>' +
+      escapar(o.NOMBRE_OBLIGACION) + '</td>' +
+      '<td>' + escapar(o.NOMBRE_CATEGORIA) + '</td>' +
       '<td class="numero">' + formatearMoneda(o.MONTO_FIJO_MENSUAL) + '</td>' +
       '<td class="numero">' + o.DIA_VENCIMIENTO + '</td>' +
       '<td><span class="insignia estado-' + o.ESTADO_PAGO + '">' + o.ESTADO_PAGO + '</span></td>' +
-      '<td>' + estadoTexto(o) + '</td>' +
-      '<td class="numero"><button class="boton-mini" data-id="' + o.ID_OBLIGACION + '">Desactivar</button></td>' +
+      '<td>' + textoObligacion(o) + '</td>' +
+      '<td class="numero">' + botonesFila(o) + '</td>' +
       '</tr>';
   }
 
@@ -77,17 +137,31 @@ async function cargarObligaciones() {
     '<strong>' + pendientes + '</strong> pendientes &nbsp;&middot;&nbsp; ' +
     '<strong>' + vencidas + '</strong> vencidas';
 
-  const botones = contenedor.querySelectorAll('.boton-mini');
+  const botonesPagar = contenedor.querySelectorAll('[data-pagar]');
 
-  for (let i = 0; i < botones.length; i++) {
-    botones[i].addEventListener('click', function () {
-      desactivarObligacion(this.dataset.id);
+  for (let i = 0; i < botonesPagar.length; i++) {
+    botonesPagar[i].addEventListener('click', function () {
+      abrirPago(this.dataset.pagar);
+    });
+  }
+
+  const botonesBaja = contenedor.querySelectorAll('[data-desactivar]');
+
+  for (let i = 0; i < botonesBaja.length; i++) {
+    botonesBaja[i].addEventListener('click', function () {
+      desactivarObligacion(this.dataset.desactivar);
     });
   }
 }
 
 async function desactivarObligacion(id) {
-  if (!confirm('Desactivar esta obligacion? Dejara de aparecer pero no se borra el historial.')) {
+  const aceptado = await confirmar(
+    'Desactivar obligacion',
+    'Deja de aparecer en los listados y en las alertas, pero el registro y sus pagos se conservan.',
+    'Desactivar'
+  );
+
+  if (!aceptado) {
     return;
   }
 
@@ -96,7 +170,7 @@ async function desactivarObligacion(id) {
 
     mostrarAviso('Obligacion desactivada', 'exito');
 
-    await actualizarTodo();
+    await refrescar();
   } catch (error) {
     mostrarAviso(error.message, 'error');
   }
@@ -125,7 +199,7 @@ async function guardarObligacion(evento) {
     document.getElementById('obMonto').value = '';
     document.getElementById('obDia').value = '';
 
-    await actualizarTodo();
+    await refrescar();
   } catch (error) {
     mostrarAviso(error.message, 'error');
   }
@@ -134,4 +208,13 @@ async function guardarObligacion(evento) {
 function conectarObligaciones() {
   document.getElementById('formObligacion').addEventListener('submit', guardarObligacion);
   document.getElementById('obFiltroEstado').addEventListener('change', cargarObligaciones);
+
+  document.getElementById('pagoConfirmar').addEventListener('click', confirmarPago);
+  document.getElementById('pagoCancelar').addEventListener('click', cerrarPago);
+
+  document.getElementById('modalPago').addEventListener('click', function (evento) {
+    if (evento.target === this) {
+      cerrarPago();
+    }
+  });
 }

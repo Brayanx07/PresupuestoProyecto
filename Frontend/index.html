@@ -200,6 +200,49 @@
           <p>Montos asignados a cada subcategoria</p>
         </div>
 
+        <div class="cabecera-recurso">
+          <div>
+            <strong id="pjNombre"></strong>
+            <span id="pjVigencia"></span>
+          </div>
+          <button type="button" class="boton-claro" id="pjNuevo">Nuevo presupuesto</button>
+          <button type="button" class="boton-mini" id="pjEliminar">Eliminar presupuesto</button>
+        </div>
+
+        <form id="formPresupuesto" class="formulario oculto">
+
+          <div class="campo-form ancho">
+            <label for="pjNombreNuevo">Nombre del presupuesto</label>
+            <input type="text" id="pjNombreNuevo" required>
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="pjAnioInicio">Anio inicio</label>
+            <input type="number" id="pjAnioInicio" value="2026" required>
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="pjMesInicio">Mes inicio</label>
+            <select id="pjMesInicio"></select>
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="pjAnioFin">Anio fin</label>
+            <input type="number" id="pjAnioFin" value="2026" required>
+          </div>
+
+          <div class="campo-form angosto">
+            <label for="pjMesFin">Mes fin</label>
+            <select id="pjMesFin"></select>
+          </div>
+
+          <div class="acciones">
+            <button type="submit" class="boton">Crear</button>
+            <button type="button" class="boton-claro" id="pjCancelar">Cancelar</button>
+          </div>
+
+        </form>
+
         <form id="formDetalle" class="formulario">
 
           <div class="campo-form">
@@ -365,25 +408,166 @@
 
         </div>
 
+        <div class="filtros">
+          <label for="catFiltro">Mostrar</label>
+          <select id="catFiltro">
+            <option value="todas">Todas mis categorias</option>
+            <option value="presupuesto">Solo las que uso en este presupuesto</option>
+          </select>
+          <span class="resumen" id="catResumen"></span>
+        </div>
+
         <div id="catLista" class="grupos"></div>
 
       </section>
 
       <section id="reportes" class="seccion">
+
         <div class="titulo">
           <h2>Reportes</h2>
           <p>Analisis del presupuesto</p>
         </div>
+
+        <div class="pestanas">
+          <button class="pestana activa" data-reporte="r1">Ingresos vs Gastos</button>
+          <button class="pestana" data-reporte="r2">Gastos por Categoria</button>
+          <button class="pestana" data-reporte="r3">Cumplimiento</button>
+          <button class="pestana" data-reporte="r4">Obligaciones</button>
+          <button type="button" class="boton" id="rpImprimir">Guardar PDF</button>
+        </div>
+
+        <div id="r1" class="reporte visible">
+
+          <div class="encabezado-reporte">
+            <h3>Resumen mensual de ingresos y gastos</h3>
+            <p>Comparativa entre lo que entro, lo que salio y lo que quedo en cada mes</p>
+          </div>
+
+          <div class="filtros">
+            <label for="r1MesDesde">Desde</label>
+            <select id="r1MesDesde"></select>
+            <input type="number" id="r1AnioDesde" value="2026">
+
+            <label for="r1MesHasta">Hasta</label>
+            <select id="r1MesHasta"></select>
+            <input type="number" id="r1AnioHasta" value="2026">
+
+            <button type="button" class="boton-claro" id="r1Actualizar">Actualizar</button>
+          </div>
+
+          <div class="lienzo"><canvas id="r1Grafico"></canvas></div>
+          <div id="r1Tabla"></div>
+
+        </div>
+
+        <div id="r2" class="reporte">
+
+          <div class="encabezado-reporte">
+            <h3>Distribucion de gastos por categoria</h3>
+            <p id="r2Subtitulo"></p>
+          </div>
+
+          <div class="doble">
+            <div class="lienzo chico"><canvas id="r2Grafico"></canvas></div>
+            <div id="r2Tabla"></div>
+          </div>
+
+        </div>
+
+        <div id="r3" class="reporte">
+
+          <div class="encabezado-reporte">
+            <h3>Cumplimiento del presupuesto</h3>
+            <p id="r3Subtitulo"></p>
+          </div>
+
+          <div class="filtros">
+            <label for="r3Tipo">Tipo</label>
+            <select id="r3Tipo">
+              <option value="">Todos</option>
+              <option value="gasto">Gasto</option>
+              <option value="ingreso">Ingreso</option>
+              <option value="ahorro">Ahorro</option>
+            </select>
+          </div>
+
+          <div class="lienzo"><canvas id="r3Grafico"></canvas></div>
+          <div id="r3Tabla"></div>
+
+        </div>
+
+        <div id="r4" class="reporte">
+
+          <div class="encabezado-reporte">
+            <h3>Estado de obligaciones fijas</h3>
+            <p id="r4Subtitulo"></p>
+          </div>
+
+          <div class="doble">
+            <div class="lienzo chico"><canvas id="r4Grafico"></canvas></div>
+            <div id="r4Tabla"></div>
+          </div>
+
+        </div>
+
       </section>
 
     </main>
   </div>
 
+  <div id="modalPago" class="modal">
+    <div class="modal-caja pago">
+      <h3>Registrar pago</h3>
+      <p id="pagoDetalle"></p>
+
+      <div class="pareja">
+        <div class="campo-form">
+          <label for="pagoMonto">Monto</label>
+          <input type="number" id="pagoMonto" step="0.01" min="0.01">
+        </div>
+
+        <div class="campo-form">
+          <label for="pagoFecha">Fecha</label>
+          <input type="date" id="pagoFecha">
+        </div>
+      </div>
+
+      <div class="campo-form">
+        <label for="pagoMetodo">Metodo de pago</label>
+        <select id="pagoMetodo">
+          <option value="transferencia">Transferencia</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="tarjeta_debito">Tarjeta de debito</option>
+          <option value="tarjeta_credito">Tarjeta de credito</option>
+        </select>
+      </div>
+
+      <div class="modal-acciones">
+        <button type="button" class="boton-claro" id="pagoCancelar">Cancelar</button>
+        <button type="button" class="boton" id="pagoConfirmar">Registrar pago</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal" class="modal">
+    <div class="modal-caja">
+      <h3 id="modalTitulo"></h3>
+      <p id="modalMensaje"></p>
+      <div class="modal-acciones">
+        <button type="button" class="boton-claro" id="modalCancelar">Cancelar</button>
+        <button type="button" class="boton peligro" id="modalConfirmar">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/comunes.js"></script>
   <script src="js/transacciones.js"></script>
   <script src="js/presupuesto.js"></script>
   <script src="js/obligaciones.js"></script>
   <script src="js/categorias.js"></script>
+  <script src="js/reportes.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

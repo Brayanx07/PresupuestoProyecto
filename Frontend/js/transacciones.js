@@ -54,9 +54,9 @@ async function cargarTransacciones() {
     filas = filas +
       '<tr>' +
       '<td>' + formatearFecha(t.FECHA) + '</td>' +
-      '<td>' + t.DESCRIPCION + '</td>' +
-      '<td>' + t.NOMBRE_SUBCATEGORIA + '</td>' +
-      '<td>' + t.NOMBRE_CATEGORIA + '</td>' +
+      '<td>' + escapar(t.DESCRIPCION) + '</td>' +
+      '<td>' + escapar(t.NOMBRE_SUBCATEGORIA) + '</td>' +
+      '<td>' + escapar(t.NOMBRE_CATEGORIA) + '</td>' +
       '<td><span class="insignia ' + t.TIPO_TRANSACCION + '">' + t.TIPO_TRANSACCION + '</span></td>' +
       '<td class="numero">' + formatearMoneda(t.MONTO) + '</td>' +
       '<td class="numero"><button class="boton-mini" data-id="' + t.ID_TRANSACCION + '">Eliminar</button></td>' +
@@ -85,7 +85,13 @@ async function cargarTransacciones() {
 }
 
 async function eliminarTransaccion(id) {
-  if (!confirm('Eliminar esta transaccion?')) {
+  const aceptado = await confirmar(
+    'Eliminar transaccion',
+    'El movimiento se borra de forma permanente y los totales del mes se recalculan.',
+    'Eliminar'
+  );
+
+  if (!aceptado) {
     return;
   }
 
@@ -94,7 +100,7 @@ async function eliminarTransaccion(id) {
 
     mostrarAviso('Transaccion eliminada', 'exito');
 
-    await actualizarTodo();
+    await refrescar();
   } catch (error) {
     mostrarAviso(error.message, 'error');
   }
@@ -129,7 +135,7 @@ async function guardarTransaccion(evento) {
     document.getElementById('txDescripcion').value = '';
     document.getElementById('txMonto').value = '';
 
-    await actualizarTodo();
+    await refrescar();
   } catch (error) {
     mostrarAviso(error.message, 'error');
   }

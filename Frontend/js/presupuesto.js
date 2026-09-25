@@ -1,5 +1,20 @@
 let detalleEditando = null;
 
+function mostrarCabecera() {
+  const presupuesto = buscarPresupuesto();
+
+  if (!presupuesto) {
+    return;
+  }
+
+  document.getElementById('pjNombre').textContent = presupuesto.NOMBRE_PRESUPUESTO;
+
+  document.getElementById('pjVigencia').textContent =
+    'Vigente de ' + NOMBRES_MES[presupuesto.MES_INICIO - 1] + ' ' + presupuesto.ANIO_INICIO +
+    ' a ' + NOMBRES_MES[presupuesto.MES_FIN - 1] + ' ' + presupuesto.ANIO_FIN +
+    ' · ' + presupuesto.ESTADO_PRESUPUESTO;
+}
+
 function limpiarFormularioDetalle() {
   detalleEditando = null;
 
@@ -10,35 +25,101 @@ function limpiarFormularioDetalle() {
   document.getElementById('dtCancelar').style.display = 'none';
 }
 
+function llenarDisponibles(usadas) {
+  const selector = document.getElementById('dtSubcategoria');
+
+  selector.innerHTML = '';
+
+  for (let i = 0; i < arbolCategorias.length; i++) {
+    const rama = arbolCategorias[i];
+    const grupo = document.createElement('optgroup');
+
+    grupo.label = rama.categoria.NOMBRE_CATEGORIA;
+
+    let agregadas = 0;
+
+    for (let j = 0; j < rama.subcategorias.length; j++) {
+      const sub = rama.subcategorias[j];
+
+      if (usadas.indexOf(sub.ID_SUBCATEGORIA) >= 0) {
+        continue;
+      }
+
+      const opcion = document.createElement('option');
+
+      opcion.value = sub.ID_SUBCATEGORIA;
+      opcion.textContent = sub.NOMBRE_SUBCATEGORIA;
+
+      grupo.appendChild(opcion);
+      agregadas = agregadas + 1;
+    }
+
+    if (agregadas > 0) {
+      selector.appendChild(grupo);
+    }
+  }
+
+  const vacio = selector.options.length === 0;
+
+  document.getElementById('dtBoton').disabled = vacio;
+
+  if (vacio) {
+    const opcion = document.createElement('option');
+
+    opcion.textContent = 'Todas las subcategorias ya estan asignadas';
+
+    selector.appendChild(opcion);
+  }
+}
+
 function prepararEdicion(detalle) {
   detalleEditando = Number(detalle.ID_DETALLE);
 
-  document.getElementById('dtSubcategoria').value = detalle.ID_SUBCATEGORIA;
-  document.getElementById('dtSubcategoria').disabled = true;
+  const selector = document.getElementById('dtSubcategoria');
+
+  let existe = false;
+
+  for (let i = 0; i < selector.options.length; i++) {
+    if (Number(selector.options[i].value) === detalle.ID_SUBCATEGORIA) {
+      existe = true;
+    }
+  }
+
+  if (!existe) {
+    const opcion = document.createElement('option');
+
+    opcion.value = detalle.ID_SUBCATEGORIA;
+    opcion.textContent = detalle.NOMBRE_SUBCATEGORIA;
+
+    selector.appendChild(opcion);
+  }
+
+  selector.value = detalle.ID_SUBCATEGORIA;
+  selector.disabled = true;
+
+  document.getElementById('dtBoton').disabled = false;
   document.getElementById('dtMonto').value = detalle.MONTO_MENSUAL_ASIGNADO;
   document.getElementById('dtObservaciones').value = detalle.OBSERVACIONES || '';
   document.getElementById('dtBoton').textContent = 'Guardar cambios';
   document.getElementById('dtCancelar').style.display = 'inline-block';
 }
 
-function claseSemaforo(porcentaje) {
-  if (porcentaje > 100) {
-    return 'rojo';
-  }
-
-  if (porcentaje >= 80) {
-    return 'ambar';
-  }
-
-  return 'verde';
-}
-
 async function cargarDetalles() {
+  mostrarCabecera();
+
   const detalles = await pedir('/detalles?presupuesto=' + presupuestoActual);
   const cumplimiento = await pedir('/reportes/cumplimiento?presupuesto=' + presupuestoActual +
     '&anio=' + anioActual + '&mes=' + mesActual);
 
   const contenedor = document.getElementById('dtTabla');
+
+  const usadas = [];
+
+  for (let i = 0; i < detalles.length; i++) {
+    usadas.push(detalles[i].ID_SUBCATEGORIA);
+  }
+
+  llenarDisponibles(usadas);
 
   if (detalles.length === 0) {
     contenedor.innerHTML = '<div class="vacio">Este presupuesto todavia no tiene renglones</div>';
@@ -68,9 +149,9 @@ async function cargarDetalles() {
 
     filas = filas +
       '<tr>' +
-      '<td>' + detalle.NOMBRE_SUBCATEGORIA + '</td>' +
-      '<td>' + detalle.NOMBRE_CATEGORIA + '</td>' +
-      '<td>' + (detalle.OBSERVACIONES || '') + '</td>' +
+      '<td>' + escapar(detalle.NOMBRE_SUBCATEGORIA) + '</td>' +
+      '<td>' + escapar(detalle.NOMBRE_CATEGORIA) + '</td>' +
+      '<td>' + escapar(detalle.OBSERVACIONES) + '</td>' +
       '<td class="numero">' + formatearMoneda(detalle.MONTO_MENSUAL_ASIGNADO) + '</td>' +
       '<td class="numero">' + formatearMoneda(ejecutado) + '</td>' +
       '<td class="numero"><span class="semaforo ' + claseSemaforo(porcentaje) + '">' +
@@ -120,7 +201,13 @@ async function cargarDetalles() {
 }
 
 async function eliminarDetalle(id) {
-  if (!confirm('Eliminar este renglon del presupuesto?')) {
+  const aceptado = await confirmar(
+    'Eliminar renglon',
+    'Se quita el monto asignado a esa subcategoria. Las transacciones ya registradas no se tocan.',
+    'Eliminar'
+  );
+
+  if (!aceptado) {
     return;
   }
 
@@ -131,7 +218,7 @@ async function eliminarDetalle(id) {
 
     limpiarFormularioDetalle();
     await cargarPresupuestos();
-    await actualizarTodo();
+    await refrescar();
   } catch (error) {
     mostrarAviso(error.message, 'error');
   }
@@ -163,7 +250,72 @@ async function guardarDetalle(evento) {
 
     limpiarFormularioDetalle();
     await cargarPresupuestos();
-    await actualizarTodo();
+    await refrescar();
+  } catch (error) {
+    mostrarAviso(error.message, 'error');
+  }
+}
+
+function alternarFormularioPresupuesto() {
+  document.getElementById('formPresupuesto').classList.toggle('oculto');
+}
+
+async function crearPresupuesto(evento) {
+  evento.preventDefault();
+
+  try {
+    const respuesta = await enviar('/presupuestos/completo', 'POST', {
+      id_usuario: USUARIO,
+      nombre: document.getElementById('pjNombreNuevo').value,
+      anio_inicio: Number(document.getElementById('pjAnioInicio').value),
+      mes_inicio: Number(document.getElementById('pjMesInicio').value),
+      anio_fin: Number(document.getElementById('pjAnioFin').value),
+      mes_fin: Number(document.getElementById('pjMesFin').value),
+      creado_por: USUARIO
+    });
+
+    mostrarAviso('Presupuesto creado, ahora cargale sus renglones', 'exito');
+
+    document.getElementById('pjNombreNuevo').value = '';
+    document.getElementById('formPresupuesto').classList.add('oculto');
+
+    await cargarPresupuestos();
+
+    presupuestoActual = Number(respuesta.id);
+    document.getElementById('selectorPresupuesto').value = presupuestoActual;
+
+    acomodarPeriodo();
+    await refrescar();
+  } catch (error) {
+    mostrarAviso(error.message, 'error');
+  }
+}
+
+async function eliminarPresupuesto() {
+  const presupuesto = buscarPresupuesto();
+
+  if (!presupuesto) {
+    return;
+  }
+
+  const aceptado = await confirmar(
+    'Eliminar presupuesto',
+    'Se eliminara "' + presupuesto.NOMBRE_PRESUPUESTO + '" con todos sus renglones. ' +
+    'Si tiene transacciones registradas la base lo va a impedir.',
+    'Eliminar'
+  );
+
+  if (!aceptado) {
+    return;
+  }
+
+  try {
+    await borrar('/presupuestos/' + presupuestoActual);
+
+    mostrarAviso('Presupuesto eliminado', 'exito');
+
+    await cargarPresupuestos();
+    await refrescar();
   } catch (error) {
     mostrarAviso(error.message, 'error');
   }
@@ -173,5 +325,12 @@ function conectarPresupuesto() {
   document.getElementById('formDetalle').addEventListener('submit', guardarDetalle);
   document.getElementById('dtCancelar').addEventListener('click', limpiarFormularioDetalle);
 
+  document.getElementById('formPresupuesto').addEventListener('submit', crearPresupuesto);
+  document.getElementById('pjNuevo').addEventListener('click', alternarFormularioPresupuesto);
+  document.getElementById('pjCancelar').addEventListener('click', alternarFormularioPresupuesto);
+  document.getElementById('pjEliminar').addEventListener('click', eliminarPresupuesto);
+
+  llenarMeses('pjMesInicio');
+  llenarMeses('pjMesFin');
   limpiarFormularioDetalle();
 }
